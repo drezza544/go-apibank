@@ -22,7 +22,7 @@ func RegisterBankRoutes(r *gin.Engine, bankController *controllers.BankControlle
 }
 
 func RegisterTransactionRoutes(r *gin.Engine, transactionController *controllers.TransactionController) {
-	// r.GET("/transaction", transactionController.AllTransactions)
+	r.GET("/transaction", transactionController.AllTransactions)
 	r.POST("/transaction", transactionController.CreateTransaction)
 	// r.GET("/transaction/:id", transactionController.GetTransactions)
 	// r.PATCH("/transaction/:id", transactionController.UpdateTransactions)

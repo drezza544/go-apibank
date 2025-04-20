@@ -18,6 +18,19 @@ func NewTransactionController(transactionService *services.TransactionService) *
 	}
 }
 
+func (uc *TransactionController) AllTransactions(c *gin.Context) {
+	transactions, err := uc.TransactionService.GetAllTransaction()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil mengambil data transaction",
+		"data":    transactions,
+	})
+}
+
 func (uc *TransactionController) CreateTransaction(c *gin.Context) {
 	var transactionRequest dto.TransactionRequest
 	if err := c.ShouldBindJSON(&transactionRequest); err != nil {

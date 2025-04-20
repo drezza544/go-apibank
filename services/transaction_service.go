@@ -21,6 +21,90 @@ func NewTransactionService(db *gorm.DB) *TransactionService {
 	}
 }
 
+func (s *TransactionService) GetAllTransaction() ([]dto.TransactionResponse, error) {
+	var transactions []models.Transaction
+
+	// Ambil transaksi dan preload relasinya
+	if err := s.DB.Preload("User").Preload("User.Accounts").Preload("User.Accounts.Bank").Preload("Bank").Find(&transactions).Error; err != nil {
+		return nil, fmt.Errorf("gagal mengambil data transaksi: %w", err)
+	}
+
+	// Mapping ke DTO
+	var transactionResponses []dto.TransactionResponse
+	for _, transaction := range transactions {
+		// Ambil user penerima berdasarkan nomor rekening tujuan
+		var toUser models.User
+		var toUserResponse *dto.ToUserResponse = nil
+		err := s.DB.Preload("Accounts").Preload("Accounts.Bank").Where("id = ?", transaction.Destination_UserId).First(&toUser).Error
+
+		if err == nil {
+			toUserResponse = &dto.ToUserResponse{
+				ID:   toUser.ID,
+				Name: toUser.Name,
+				ToAccountResponse: dto.ToAccountResponse{
+					BankId:        toUser.Accounts.BankId,
+					AccountNumber: toUser.Accounts.AccountNumber,
+					Balance:       toUser.Accounts.Balance,
+					Status:        toUser.Accounts.Status,
+					ToBankResponse: dto.ToBankResponse{
+						ID:   toUser.Accounts.Bank.ID,
+						Name: toUser.Accounts.Bank.Name,
+					},
+				},
+			}
+		}
+
+		fromAccount := transaction.User.Accounts
+		// toAccount := toUser.Accounts
+
+		transactionResponses = append(transactionResponses, dto.TransactionResponse{
+			TransactionId:       transaction.TransactionId,
+			UserId:              transaction.UserId,
+			BankId:              transaction.BankId,
+			Destination_Account: transaction.Destination_Account,
+			Amount:              transaction.Amount,
+			BalanceBefore:       transaction.BalanceBefore,
+			BalanceAfter:        transaction.BalanceAfter,
+			Type:                transaction.Type,
+			Status:              transaction.Status,
+
+			FromUserResponse: &dto.FromUserResponse{
+				ID:   transaction.User.ID,
+				Name: transaction.User.Name,
+				FromAccountResponse: dto.FromAccountResponse{
+					BankId:        fromAccount.BankId,
+					AccountNumber: fromAccount.AccountNumber,
+					Balance:       fromAccount.Balance,
+					Status:        fromAccount.Status,
+					FromBankResponse: dto.FromBankResponse{
+						ID:   transaction.BankId,
+						Name: transaction.Bank.Name,
+					},
+				},
+			},
+
+			ToUserResponse: toUserResponse,
+
+			// ToUserResponse: &dto.ToUserResponse{
+			// 	ID:   toUser.ID,
+			// 	Name: toUser.Name,
+			// 	ToAccountResponse: dto.ToAccountResponse{
+			// 		BankId:        toAccount.BankId,
+			// 		AccountNumber: toAccount.AccountNumber,
+			// 		Balance:       toAccount.Balance,
+			// 		Status:        toAccount.Status,
+			// 		ToBankResponse: dto.ToBankResponse{
+			// 			ID:   toAccount.Bank.ID,
+			// 			Name: toAccount.Bank.Name,
+			// 		},
+			// 	},
+			// },
+		})
+	}
+
+	return transactionResponses, nil
+}
+
 func (s *TransactionService) CreateTransaction(transactionRequest dto.TransactionRequest) (*models.Transaction, error) {
 	// Required Field
 	if transactionRequest.UserId == nil || *transactionRequest.UserId == uuid.Nil ||
@@ -111,6 +195,8 @@ func (s *TransactionService) CreateTransaction(transactionRequest dto.Transactio
 	transaction := models.Transaction{
 		UserId:              *transactionRequest.UserId,
 		BankId:              *transactionRequest.BankId,
+		Destination_UserId:  receiverUser.UserId,
+		From_BankId:         user.Accounts.BankId,
 		TransactionId:       generateNumber,
 		Destination_Account: *transactionRequest.Destination_Account,
 		Amount:              *transactionRequest.Amount,

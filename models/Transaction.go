@@ -9,8 +9,10 @@ import (
 
 type Transaction struct {
 	ID                  uuid.UUID `gorm:"type:UUID;default:uuid_generate_v4();primary_key"`
-	UserId              uuid.UUID `gorm:"type:uuid;not null;"`
-	BankId              uuid.UUID `gorm:"type:uuid;not null;" `
+	UserId              uuid.UUID `gorm:"type:uuid;not null;"` // User ini yang melakukan transaksi
+	BankId              uuid.UUID `gorm:"type:uuid;not null;"` // Ini Bank Tujuan
+	Destination_UserId  uuid.UUID // User ini yang menerima transaksi
+	From_BankId         uuid.UUID // Bank ini yang melakukan transaksi
 	TransactionId       string    `gorm:"unique" `
 	Destination_Account string
 	Amount              int64
@@ -21,4 +23,8 @@ type Transaction struct {
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	DeletedAt           *gorm.DeletedAt `gorm:"index"`
+
+	// Relationships
+	User *User `gorm:"foreignKey:UserId; constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Bank Bank  `gorm:"foreignKey:BankId; constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
